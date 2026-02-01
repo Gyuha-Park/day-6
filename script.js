@@ -1,0 +1,144 @@
+document.addEventListener('DOMContentLoaded', () => {
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const diaryInput = document.getElementById('diary-input');
+    const responseBox = document.getElementById('ai-response-box');
+    const responseText = document.getElementById('response-text');
+    const voiceBtn = document.getElementById('voice-btn');
+
+    // 1. 로컬 스토리지에서 이전 기록 불러오기
+    const loadSavedData = () => {
+        const savedDiary = localStorage.getItem('last_diary');
+        const savedResponse = localStorage.getItem('last_ai_response');
+
+        if (savedDiary) {
+            diaryInput.value = savedDiary;
+        }
+
+        if (savedResponse) {
+            responseText.textContent = savedResponse;
+            responseText.style.fontStyle = 'normal';
+            responseText.style.color = '#f8fafc';
+        }
+    };
+
+    loadSavedData();
+
+    analyzeBtn.addEventListener('click', async () => {
+        const text = diaryInput.value.trim();
+
+        if (!text) {
+            alert('먼저 일기를 작성해주세요!');
+            return;
+        }
+
+        if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === '발급받은_API_키를_여기에_입력하세요') {
+            alert('API 키가 설정되지 않았습니다. config.js 파일에 키를 입력해주세요.');
+            return;
+        }
+
+        // UI State: Loading
+        analyzeBtn.disabled = true;
+        analyzeBtn.innerHTML = '<span class="icon">⏳</span> 분석 중...';
+        responseText.textContent = 'AI가 당신의 이야기를 읽고 답변을 준비하고 있어요...';
+        responseText.style.fontStyle = 'italic';
+        responseText.style.color = 'var(--text-muted)';
+
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${CONFIG.GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `너는 심리 상담가야. 사용자가 작성한 일기 내용을 읽고, 사용자의 감정을 한 단어(예: 기쁨, 슬픔, 분노, 불안, 평온)로 요약해줘. 그리고 그 감정에 공감해주고, 따뜻한 응원의 메시지를 2~3문장으로 작성해줘. 답변 형식은 반드시 '감정: [요약된 감정]\n\n[응원 메시지]' 와 같이 줄바꿈을 포함해서 보내줘. 일기 내용: "${text}"`
+                        }]
+                    }]
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error.message);
+            }
+
+            const aiMessage = data.candidates[0].content.parts[0].text;
+
+            // UI State: Success
+            responseText.textContent = aiMessage;
+            responseText.style.fontStyle = 'normal';
+            responseText.style.color = '#f8fafc';
+
+            // 2. 새로운 기록 로컬 스토리지에 저장
+            localStorage.setItem('last_diary', text);
+            localStorage.setItem('last_ai_response', aiMessage);
+
+        } catch (error) {
+            console.error('API Error:', error);
+            responseText.textContent = '죄송합니다. 답변을 가져오는 중에 오류가 발생했습니다. API 키를 확인하거나 잠시 후 다시 시도해주세요.';
+        } finally {
+            analyzeBtn.disabled = false;
+            analyzeBtn.innerHTML = '<span class="icon">✨</span> 분석 요청하기';
+        }
+    });
+
+    // Speech Recognition Setup
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'ko-KR'; // 한국어 설정
+        recognition.continuous = false; // 한 문장씩 인식 (필요시 true로 변경 가능)
+        recognition.interimResults = false;
+
+        recognition.onstart = () => {
+            voiceBtn.classList.add('recording');
+            voiceBtn.innerHTML = '<span class="icon">🔴</span> 음성 인식 중...';
+        };
+
+        recognition.onend = () => {
+            voiceBtn.classList.remove('recording');
+            voiceBtn.innerHTML = '<span class="icon">🎙️</span> 음성으로 입력하기';
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            diaryInput.value += (diaryInput.value ? ' ' : '') + transcript;
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            if (event.error === 'not-allowed') {
+                alert('마이크 사용 권한이 거부되었습니다. 브라우저 설정에서 마이크를 허용해주세요.');
+            } else {
+                alert('음성 인식 중 오류가 발생했습니다: ' + event.error);
+            }
+        };
+    }
+
+    voiceBtn.addEventListener('click', () => {
+        if (!recognition) {
+            alert('이 브라우저는 음성 인식을 지원하지 않습니다. 크롬 브라우저 사용을 권장합니다.');
+            return;
+        }
+
+        try {
+            recognition.start();
+        } catch (e) {
+            // 이미 실행 중인 경우 등 예외 처리
+            recognition.stop();
+        }
+    });
+
+    // Simple interaction feedback
+    diaryInput.addEventListener('focus', () => {
+        diaryInput.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+    });
+
+    diaryInput.addEventListener('blur', () => {
+        diaryInput.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+    });
+});
