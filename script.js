@@ -31,11 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === '발급받은_API_키를_여기에_입력하세요') {
-            alert('API 키가 설정되지 않았습니다. config.js 파일에 키를 입력해주세요.');
-            return;
-        }
-
         // UI State: Loading
         analyzeBtn.disabled = true;
         analyzeBtn.innerHTML = '<span class="icon">⏳</span> 분석 중...';
@@ -44,27 +39,21 @@ document.addEventListener('DOMContentLoaded', () => {
         responseText.style.color = 'var(--text-muted)';
 
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${CONFIG.GEMINI_API_KEY}`, {
+            const response = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: `너는 심리 상담가야. 사용자가 작성한 일기 내용을 읽고, 사용자의 감정을 한 단어(예: 기쁨, 슬픔, 분노, 불안, 평온)로 요약해줘. 그리고 그 감정에 공감해주고, 따뜻한 응원의 메시지를 2~3문장으로 작성해줘. 답변 형식은 반드시 '감정: [요약된 감정]\n\n[응원 메시지]' 와 같이 줄바꿈을 포함해서 보내줘. 일기 내용: "${text}"`
-                        }]
-                    }]
-                })
+                body: JSON.stringify({ content: text })
             });
 
             const data = await response.json();
 
-            if (data.error) {
-                throw new Error(data.error.message);
+            if (!response.ok || data.error) {
+                throw new Error(data.error || '서버 응답 오류가 발생했습니다.');
             }
 
-            const aiMessage = data.candidates[0].content.parts[0].text;
+            const aiMessage = data.analysis;
 
             // UI State: Success
             responseText.textContent = aiMessage;
@@ -77,7 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error('API Error:', error);
-            responseText.textContent = '죄송합니다. 답변을 가져오는 중에 오류가 발생했습니다. API 키를 확인하거나 잠시 후 다시 시도해주세요.';
+            responseText.textContent = error.message.includes('API 키')
+                ? '서버 설정 오류입니다. 관리자에게 문의하세요.'
+                : '죄송합니다. 답변을 가져오는 중에 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
         } finally {
             analyzeBtn.disabled = false;
             analyzeBtn.innerHTML = '<span class="icon">✨</span> 분석 요청하기';
