@@ -132,4 +132,62 @@ document.addEventListener('DOMContentLoaded', () => {
     diaryInput.addEventListener('blur', () => {
         diaryInput.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
     });
+    // History Loading
+    const historyList = document.getElementById('history-list');
+
+    const formatDate = (isoString) => {
+        const date = new Date(isoString);
+        return new Intl.DateTimeFormat('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            weekday: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(date);
+    };
+
+    const createHistoryCard = (item) => {
+        const card = document.createElement('div');
+        card.className = 'history-card';
+
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="date">${formatDate(item.createdAt)}</span>
+            </div>
+            <div class="card-body">
+                <div class="diary-content">
+                    <p>${item.content}</p>
+                </div>
+                <div class="ai-content">
+                    <span class="ai-label">AI의 답변</span>
+                    <p>${item.aiMessage.replace(/\n/g, '<br>')}</p>
+                </div>
+            </div>
+        `;
+        return card;
+    };
+
+    const fetchHistory = async () => {
+        try {
+            const response = await fetch('/api/history');
+            const data = await response.json();
+
+            if (data.history && data.history.length > 0) {
+                historyList.innerHTML = ''; // Clear loading message
+                data.history.forEach(item => {
+                    const card = createHistoryCard(item);
+                    historyList.appendChild(card);
+                });
+            } else {
+                historyList.innerHTML = '<p class="empty-message">아직 기록된 일기가 없습니다. 첫 일기를 작성해보세요!</p>';
+            }
+        } catch (error) {
+            console.error('History fetch error:', error);
+            historyList.innerHTML = '<p class="error-message">히스토리를 불러오지 못했습니다.</p>';
+        }
+    };
+
+    // Load history on start
+    fetchHistory();
 });

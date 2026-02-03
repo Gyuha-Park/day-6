@@ -1,3 +1,5 @@
+import Redis from 'ioredis';
+
 export default async function handler(request, response) {
     // 1. POST 요청만 허용
     if (request.method !== 'POST') {
@@ -18,6 +20,7 @@ export default async function handler(request, response) {
 
         // 3. 환경 변수에서 API 키 가져오기
         const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+        const REDIS_URL = process.env.REDIS_URL;
 
         if (!GEMINI_API_KEY) {
             return response.status(500).json({
@@ -25,6 +28,7 @@ export default async function handler(request, response) {
             });
         }
 
+        // 4. Gemini API 호출
         const geminiResponse = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
             {
@@ -55,7 +59,39 @@ export default async function handler(request, response) {
         // 5. AI 답변 추출
         const aiMessage = data.candidates[0].content.parts[0].text;
 
-        // 6. 결과 반환
+        // 6. Redis에 저장
+        if (REDIS_URL) {
+            try {
+                const client = new Redis(REDIS_URL);
+
+                // 현재 시간을 YYYYMMDDHHMMSS 형식으로 포맷팅
+                const now = new Date();
+                const timestamp = now.getFullYear().toString() +
+                    (now.getMonth() + 1).toString().padStart(2, '0') +
+                    now.getDate().toString().padStart(2, '0') +
+                    now.getHours().toString().padStart(2, '0') +
+                    now.getMinutes().toString().padStart(2, '0') +
+                    now.getSeconds().toString().padStart(2, '0');
+
+                const key = `diary-${timestamp}`;
+
+                const value = JSON.stringify({
+                    content,
+                    aiMessage,
+                    createdAt: now.toISOString()
+                });
+
+                await client.set(key, value);
+
+                // Serverless 환경에서는 연결을 명시적으로 끊어주어야 함수가 종료될 수 있음 (상황에 따라 다름)
+                await client.quit();
+            } catch (redisError) {
+                console.error('Redis 저장 중 오류 발생:', redisError);
+                // Redis 저장이 실패하더라도 사용자에게는 AI 답변을 정상적으로 반환해야 함
+            }
+        }
+
+        // 7. 결과 반환
         return response.status(200).json({
             success: true,
             analysis: aiMessage,

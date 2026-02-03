@@ -190,6 +190,94 @@ footer {
     color: var(--text-muted);
 }
 
+/* History Section */
+.history-section {
+    margin-top: 40px;
+    padding-top: 32px;
+    border-top: 1px solid var(--glass-border);
+    animation: fadeIn 0.8s ease-out 0.2s backwards;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    margin-bottom: 20px;
+    color: var(--text-muted);
+}
+
+.history-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.history-card {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 24px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.history-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.card-header {
+    display: flex;
+    justify-content: flex-end; /* 날짜를 우측으로 */
+    margin-bottom: 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--secondary-color);
+}
+
+.diary-content {
+    margin-bottom: 20px;
+    color: var(--text-main);
+    line-height: 1.6;
+    font-size: 1.05rem;
+    white-space: pre-wrap; /* 줄바꿈 유지 */
+}
+
+.ai-content {
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    border-left: 3px solid var(--primary-color);
+}
+
+.ai-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ai-content p {
+    color: #e0e7ff;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.loading-spinner, .empty-message, .error-message {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 40px 0;
+    font-style: italic;
+    background: rgba(0,0,0,0.1);
+    border-radius: 12px;
+}
+
+.error-message {
+    color: #fda4af;
+}
+
 @media (max-width: 480px) {
     .container {
         padding: 24px;
